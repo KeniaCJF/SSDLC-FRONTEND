@@ -3,7 +3,7 @@
     <h2>Mis Incidencias</h2>
     <button @click="logout">Cerrar Sesión</button><br></br><br></br>
 
-    <router-link to="/generate_incidence">
+    <router-link to="/generate-incidence">
       <button>Generar Nueva Incidencia</button>
     </router-link>
 
@@ -57,6 +57,7 @@ const getFileUrl = (path) => {
 const formateDate = (datetime) => {
   return new Date(datetime).toLocaleDateString()
 }
+
 </script>
 <style scoped>
 .incidence-list {
@@ -64,6 +65,7 @@ const formateDate = (datetime) => {
   margin: auto;
   padding: 1rem;
   font-family: sans-serif;
+  color: #000;
 }
 .logout-button {
   background-color: #e11d48;
@@ -76,10 +78,14 @@ const formateDate = (datetime) => {
 }
 .incidence-item {
   background: #f9f9f9;
+  color: #000;
   padding: 1rem;
   margin-bottom: 1rem;
   border-left: 5px solid #1d4ed8;
 }
+
+
+
 .status {
   font-size: 0.9rem;
   margin-left: 1rem;

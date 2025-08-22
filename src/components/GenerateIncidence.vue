@@ -7,7 +7,9 @@
       <label>Lugar:</label>
       <select v-model="placeSelected">
         <option disabled value="">Selecciona lugar</option>
-        <option v-for="(items, place) in data" :key="place" :value="place">{{ place }}</option>
+        <option v-for="(items, place) in data" :key="place" :value="place">
+          {{ place }}
+        </option>
       </select>
 
       <div v-if="availableItems.length">
@@ -19,40 +21,29 @@
           </option>
         </select>
       </div>
+
       <div v-if="availableDetails.length">
         <label v-if="itemSelected">Detalle:</label>
         <select v-if="itemSelected" v-model="detailSelected">
           <option disabled value="">Selecciona detalle</option>
-          <option
-            v-for="(problems, detail) in data[placeSelected][itemSelected]"
-            :key="detail"
-            :value="detail"
-          >
+          <option v-for="(problems, detail) in data[placeSelected][itemSelected]" :key="detail" :value="detail">
             {{ detail }}
           </option>
         </select>
       </div>
+
       <div v-if="availableProblems.length">
         <label v-if="detailSelected">Problema:</label>
         <select v-if="detailSelected" v-model="problemSelected">
           <option disabled value="">Selecciona problema</option>
-          <option
-            v-for="problem in data[placeSelected][itemSelected][detailSelected]"
-            :key="problem"
-            :value="problem"
-          >
+          <option v-for="problem in data[placeSelected][itemSelected][detailSelected]" :key="problem" :value="problem">
             {{ problem }}
           </option>
         </select>
       </div>
 
       <label>Observación:</label>
-      <textarea
-        v-model="observation"
-        rows="4"
-        cols="50"
-        placeholder="Escribe una observación..."
-      ></textarea>
+      <textarea v-model="observation" rows="4" cols="50" placeholder="Escribe una observación..."></textarea>
 
       <button @click="send">Enviar</button>
     </div>
@@ -60,84 +51,59 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
-import { incidenceData as data } from '@/data/incidences'
-import Swal from 'sweetalert2'
+import { ref, computed, watch } from "vue"
+import { incidenceData as data } from "@/data/incidences"
+import Swal from "sweetalert2"
+import api from "@/api/axios"
+import { useRouter } from "vue-router"
+import { useUserStore } from "@/stores/user"
 
-const placeSelected = ref('')
-const itemSelected = ref('')
-const detailSelected = ref('')
-const problemSelected = ref('')
-const observation = ref('')
+const router = useRouter()
+const userStore = useUserStore()
 
-watch(placeSelected, () => {
-  itemSelected.value = ''
-  detailSelected.value = ''
-  problemSelected.value = ''
-})
+const placeSelected = ref("")
+const itemSelected = ref("")
+const detailSelected = ref("")
+const problemSelected = ref("")
+const observation = ref("")
 
-watch(itemSelected, () => {
-  detailSelected.value = ''
-  problemSelected.value = ''
-})
+watch(placeSelected, () => { itemSelected.value = ""; detailSelected.value = ""; problemSelected.value = "" })
+watch(itemSelected, () => { detailSelected.value = ""; problemSelected.value = "" })
+watch(detailSelected, () => { problemSelected.value = "" })
 
-watch(detailSelected, () => {
-  problemSelected.value = ''
-})
+const availableItems = computed(() => placeSelected.value ? Object.keys(data[placeSelected.value]) : [])
+const availableDetails = computed(() => placeSelected.value && itemSelected.value ? Object.keys(data[placeSelected.value][itemSelected.value]) : [])
+const availableProblems = computed(() => placeSelected.value && itemSelected.value && detailSelected.value ? data[placeSelected.value][itemSelected.value][detailSelected.value] : [])
 
-const availableItems = computed(() => {
-  return placeSelected.value ? Object.keys(data[placeSelected.value]) : []
-})
-const availableDetails = computed(() => {
-  return placeSelected.value && itemSelected.value
-    ? Object.keys(data[placeSelected.value][itemSelected.value])
-    : []
-})
-const availableProblems = computed(() => {
-  return placeSelected.value && itemSelected.value && detailSelected.value
-    ? data[placeSelected.value][itemSelected.value][detailSelected.value]
-    : []
-})
+const resetForm = () => { placeSelected.value=""; itemSelected.value=""; detailSelected.value=""; problemSelected.value=""; observation.value="" }
+const goToIncidences = () => router.push("/incidences")
 
-const resetForm = () => {
-  placeSelected.value = ''
-  itemSelected.value = ''
-  detailSelected.value = ''
-  problemSelected.value = ''
-  observation.value = ''
-}
-
-const send = () => {
-  if (
-    !placeSelected.value ||
-    !itemSelected.value ||
-    !detailSelected.value ||
-    !problemSelected.value
-  ) {
-    Swal.fire({
-      title: 'Error',
-      text: 'Por favor complete todos los campos obligatorios',
-      icon: 'error',
-    })
+const send = async () => {
+  if (!placeSelected.value || !itemSelected.value || !detailSelected.value || !problemSelected.value) {
+    Swal.fire({ title: "Error", text: "Complete todos los campos", icon: "error" })
     return
   }
 
-  console.log({
-    lugar: placeSelected.value,
-    item: itemSelected.value,
-    detalle: detailSelected.value,
-    problema: problemSelected.value,
-    observacion: observation.value,
-  })
+  if (!userStore.token) {
+    Swal.fire({ title: "Error", text: "No estás autenticado", icon: "error" })
+    return
+  }
 
-  Swal.fire({
-    title: '¡Éxito!',
-    text: 'La incidencia se ha generado correctamente',
-    icon: 'success',
-    confirmButtonText: 'Aceptar',
-  }).then(() => {
-    resetForm()
-  })
+  const reportData = {
+    type: `${itemSelected.value} - ${detailSelected.value} - ${problemSelected.value}`,
+    description: observation.value || "Sin observación",
+    location: placeSelected.value,
+  }
+
+  try {
+    await api.post('/api/reports', reportData, {
+      headers: { Authorization: `Bearer ${userStore.token}`, Accept: 'application/json' }
+    })
+    Swal.fire({ title: "Éxito", text: "Incidencia creada", icon: "success" }).then(resetForm)
+  } catch (error) {
+    console.error("Error al guardar incidencia:", error.response?.data || error)
+    Swal.fire({ title: "Error", text: "No se pudo guardar la incidencia", icon: "error" })
+  }
 }
 </script>
 
